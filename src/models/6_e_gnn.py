@@ -1,6 +1,5 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from torch import Tensor
 from torch_geometric.nn import GATv2Conv
 from torch_geometric.typing import Adj
@@ -9,8 +8,12 @@ from src.models.base_expert import GNNResidualBlock
 class ElasticityAttention(nn.Module):
     """
     Research-grade Elasticity Head.
-    Specifically computes the 'Shock sensitivity' between two nodes 
+    Specifically computes the 'Shock sensitivity' between two nodes
     based on their relative price delta.
+
+    NOTE: This class is a legacy auxiliary head preserved for future
+    per-edge elasticity scoring. It is not currently instantiated inside
+    EGNNExpert — the main layers use GATv2Conv directly.
     """
     def __init__(self, dim: int, heads: int = 8):
         super().__init__()
@@ -103,6 +106,13 @@ class EGNNExpert(nn.Module):
         Mathematical utility for GraphBuilder:
         Identify cross-price elasticity by observing historical co-variance
         when one item's price changes and others remain constant.
+
+        NOTE: This method is a stub. The implementation lives in
+        M5GraphBuilder.build_elasticity_edges() in src/utils/graph_builder.py.
+        Calling this directly raises NotImplementedError to prevent silent None returns.
         """
-        # CPED = (% Change in Q_a) / (% Change in P_b)
-        pass
+        raise NotImplementedError(
+            "Use M5GraphBuilder.build_elasticity_edges() instead. "
+            "This static stub is intentionally unimplemented here to avoid "
+            "silent None returns from a pass statement."
+        )

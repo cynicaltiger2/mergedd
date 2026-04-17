@@ -1,6 +1,5 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from torch import Tensor
 import math
 from torch_geometric.nn import GATv2Conv
@@ -103,8 +102,15 @@ class CalGNNExpert(nn.Module):
     @staticmethod
     def construct_temporal_edges(df_calendar, df_sales, threshold=0.7):
         """
-        Utility for GraphBuilder:
-        Find products that exhibit the same 'Event Elasticity'.
-        Calculates similarity of sales variance during SNAP vs non-SNAP days.
+        Utility for GraphBuilder: find products with same 'Event Elasticity'.
+
+        NOTE: This static stub is intentionally unimplemented here.
+        The full implementation is in M5GraphBuilder.build_temporal_sync_graph()
+        in src/utils/graph_builder.py, which respects the train_cutoff_day
+        data leakage policy.
         """
-        pass
+        raise NotImplementedError(
+            "Use M5GraphBuilder.build_temporal_sync_graph() instead. "
+            "That version correctly respects the training cutoff day "
+            "to prevent data leakage."
+        )

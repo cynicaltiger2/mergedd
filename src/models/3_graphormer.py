@@ -68,11 +68,12 @@ class GraphormerExpert(nn.Module):
             )
             self.layers.append(GNNResidualBlock(hidden_dim, conv, dropout=dropout))
             
-        # 3. Spatial Encoding Bias (Simplified for Runtime Efficiency)
-        # In full research, this is a Shortest Path Distance (SPD) bias.
-        # Here we use a learnable scalar bias that adjusts based on the attention heads.
-        self.spatial_bias = nn.Parameter(torch.zeros(1, heads, 1, 1))
-        
+        # NOTE: A full Graphormer spatial bias requires precomputing all-pairs
+        # shortest-path distances (SPD), which is expensive at graph scale.
+        # The SPD bias is intentionally deferred; CentralityEncoding already
+        # provides structural awareness. The previously declared spatial_bias
+        # parameter has been removed — it had a permanent zero gradient because
+        # it was never used in forward(), wasting memory and confusing audits.
         self.final_norm = nn.LayerNorm(hidden_dim)
         self.dropout = nn.Dropout(dropout)
 

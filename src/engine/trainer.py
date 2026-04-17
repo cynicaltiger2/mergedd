@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.cuda.amp import GradScaler, autocast
+from torch.amp import GradScaler, autocast
 import math
 import logging
 from typing import Dict, Optional, Tuple
@@ -50,8 +50,14 @@ class SupremeTrainer:
         else:
             self.ema = None
             
-        self.scaler = GradScaler()
+        self.scaler = GradScaler(device='cuda')
         self.logger = logging.getLogger("SupremeTrainer")
+
+        # Loss instantiated once here — not inside the training loop.
+        # Recreating it per-batch caused redundant __init__ calls and
+        # a dynamic import on every iteration, wasting time.
+        from src.engine.loss import M5SupremeLoss
+        self.criterion = M5SupremeLoss()
 
     def _compute_vat_loss(self, x: torch.Tensor, adj_dict: Dict, clean_forecast: torch.Tensor) -> torch.Tensor:
         """
@@ -64,7 +70,7 @@ class SupremeTrainer:
         d.requires_grad_(True)
         
         # 2. Estimate the adversarial direction (where error increases most)
-        with autocast():
+        with autocast(device_type='cuda', dtype=torch.float16):
             adv_forecast, _, _ = self.model(x + d, adj_dict)
             # Use KL-Divergence or MSE as the consistency metric
             dist = F.mse_loss(adv_forecast, clean_forecast.detach())
@@ -73,7 +79,7 @@ class SupremeTrainer:
         d_adv = self.vat_epsilon * (grad / (torch.norm(grad, dim=-1, keepdim=True) + 1e-10))
         
         # 3. Compute final consistency loss
-        with autocast():
+        with autocast(device_type='cuda', dtype=torch.float16):
             adv_forecast, _, _ = self.model(x + d_adv.detach(), adj_dict)
             vat_loss = F.mse_loss(adv_forecast, clean_forecast.detach())
             
@@ -87,14 +93,14 @@ class SupremeTrainer:
             batch = batch.to(self.device)
             self.optimizer.zero_grad(set_to_none=True)
 
-            with autocast(dtype=torch.float16): # Standard for A100 FP16
+            with autocast(device_type='cuda', dtype=torch.float16):  # A100 FP16
                 # Forward Pass
                 forecast, prob_zero_logits, _ = self.model(batch.x, batch.adj_dict)
                 
                 # 1. Primary Loss (Tweedie + WRMSSE alignment)
-                from src.engine.loss import M5SupremeLoss
-                criterion = M5SupremeLoss()
-                base_loss = criterion(forecast, batch.y, prob_zero_logits, self.weights, self.scale)
+                base_loss = self.criterion(
+                    forecast, batch.y, prob_zero_logits, self.weights, self.scale
+                )
                 
                 # 2. VAT Loss (The Chaos Shield)
                 # Only applied every few steps or with a weight alpha to save compute
@@ -143,7 +149,8 @@ class SupremeTrainer:
     def _run_evaluation_loop(self, loader) -> float:
         preds, targets = [], []
         from src.utils.metrics import WRMSSEMetric
-        metric_calc = WRMSSEMetric(self.weights, self.scale)
+        # WRMSSEMetric requires (weights, scales, device) — device was previously missing
+        metric_calc = WRMSSEMetric(self.weights, self.scale, self.device)
 
         for batch in loader:
             batch = batch.to(self.device)

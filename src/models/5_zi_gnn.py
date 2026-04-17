@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
+from typing import Tuple
 from torch_geometric.nn import GATv2Conv
 from torch_geometric.typing import Adj
 from src.models.base_expert import GNNResidualBlock

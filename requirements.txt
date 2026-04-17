@@ -24,6 +24,10 @@ joblib
 pyarrow
 fastparquet
 
+# --- Experiment Tracking ---
+wandb                  # Used in main.py for run logging and hyperparameter sweeps
+torch-ema              # Used in trainer.py for EMA weight averaging (SOTA stability)
+
 # --- Diagnostics & Visualization ---
 matplotlib
 seaborn

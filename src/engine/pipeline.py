@@ -2,7 +2,6 @@ import torch
 import numpy as np
 import pandas as pd
 from torch.utils.data import Dataset, DataLoader
-from torch_geometric.data import Data, Batch
 from typing import Dict, List, Optional, Union, Tuple
 import logging
 
@@ -49,13 +48,13 @@ class M5SupremeDataset(Dataset):
                  mode: str = 'train'):
         self.mode = mode
         
-        # Memory-mapping tensors allows us to handle datasets larger than RAM
-        # while the A100 handles the VRAM load.
-        self.x = torch.load(x_path, map_location='cpu')
-        self.y = torch.load(y_path, map_location='cpu')
+        # weights_only=False: we load full objects (dicts + tensors), not just model weights.
+        # Safe here because these are our own pre-built tensors, not untrusted checkpoints.
+        self.x = torch.load(x_path, map_location='cpu', weights_only=False)
+        self.y = torch.load(y_path, map_location='cpu', weights_only=False)
         
         # Meta contains 'weights' and 'scales' pre-calculated for WRMSSE
-        meta = torch.load(meta_path, map_location='cpu')
+        meta = torch.load(meta_path, map_location='cpu', weights_only=False)
         self.weights = meta['weights']
         self.scales = meta['scales']
         
@@ -110,11 +109,13 @@ class M5DataEngine:
         self.loader = DataLoader(
             dataset,
             batch_size=batch_size,
-            shuffle=(dataset.mode == 'train'),
+            # Shuffling is meaningless for a graph-level dataset where __len__==1.
+            # The graph IS the dataset — there is nothing to shuffle.
+            shuffle=False,
             num_workers=workers,
-            pin_memory=True, # Critical for A100 DMA transfers
-            persistent_workers=True if workers > 0 else False,
-            collate_fn=lambda x: x[0] # Return the M5SupremeBatch object directly
+            pin_memory=True,  # Critical for A100 DMA transfers
+            persistent_workers=(workers > 0),
+            collate_fn=lambda x: x[0]  # Return the M5SupremeBatch object directly
         )
 
     def get_stream(self, device, hawkes_augmentation=False):
@@ -163,7 +164,9 @@ def _apply_hawkes_perturbation(batch: M5SupremeBatch) -> M5SupremeBatch:
     params = HawkesParams(mu=mu, alpha=alpha, beta=beta)
     params.validate_subcritical()
 
-    hawkes = HawkesProcess(params=params, seed=42)
+    import random
+    seed = random.randint(0, 2**31 - 1)   # fresh seed per call — no two batches share a mask
+    hawkes = HawkesProcess(params=params, seed=seed)
 
     # batch.x shape: [N, features] or [N, T] depending on pipeline stage
     x_np = batch.x.detach().cpu().numpy()
