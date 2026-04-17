@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
 import math
-from typing import List, Tuple, Dict
+from typing import List, Tuple
 
 class ExpertAttentionGate(nn.Module):
     """
@@ -127,4 +127,4 @@ class MetaBlender(nn.Module):
     @staticmethod
     def get_blender_logic():
         """Returns the MoE trust formulation."""
-        return "Y_hat = [ \sum w_i(context) * E_i ] * Mask_sparsity"
+        return r"Y_hat = [ \sum w_i(context) * E_i ] * Mask_sparsity"

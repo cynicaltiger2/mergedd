@@ -73,7 +73,10 @@ class HGNNExpert(nn.Module):
     def _init_weights(self):
         for m in self.modules():
             if isinstance(m, nn.Linear):
-                nn.init.kaiming_normal_(m.weight, nonlinearity='relu')
+                # trunc_normal_(std=0.02) is the standard for GELU/transformer-style
+                # networks (ViT, DeiT, Graphormer). kaiming with 'relu' gain is
+                # incorrect for GELU activations and over-scales initial weights.
+                nn.init.trunc_normal_(m.weight, mean=0.0, std=0.02, a=-2.0, b=2.0)
                 if m.bias is not None:
                     nn.init.zeros_(m.bias)
 

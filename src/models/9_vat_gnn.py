@@ -1,6 +1,5 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from torch import Tensor
 from torch_geometric.nn import GATv2Conv
 from torch_geometric.typing import Adj
@@ -8,9 +7,13 @@ from src.models.base_expert import GNNResidualBlock
 
 class RobustAttentionHead(nn.Module):
     """
-    Research-grade Adversarial Attention.
-    Implements a 'Lipschitz-Continuous' style attention where weights 
+    Research-grade Adversarial Attention — legacy modular head.
+    Implements a 'Lipschitz-Continuous' style attention where weights
     are normalized to prevent extreme sensitivity to individual nodes.
+
+    NOTE: VATGNNExpert uses GATv2Conv via GNNResidualBlock directly
+    rather than this class. Preserved here as a standalone modular
+    component for future layer-level ablation studies.
     """
     def __init__(self, dim: int, heads: int = 8, dropout: float = 0.2):
         super().__init__()

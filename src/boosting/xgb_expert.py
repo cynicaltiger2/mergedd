@@ -4,13 +4,13 @@ import pandas as pd
 import os
 import logging
 import yaml
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Dict, Optional, Tuple, Any
 
 # Research-grade logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("XGB_Expert")
 
-class SupremeXGBExpert:
+class XGBExpert:
     """
     Research-Grade XGBoost Expert for M5.
     
